@@ -1,0 +1,96 @@
+{
+  "name": "@notifiable/expo",
+  "version": "0.1.0",
+  "description": "Expo SDK for Notifiable.",
+  "homepage": "https://notifiable.sh",
+  "keywords": [
+    "notifiable",
+    "expo",
+    "push-notifications",
+    "notifications"
+  ],
+  "author": {
+    "name": "Notifiable",
+    "url": "https://notifiable.sh"
+  },
+  "contributors": [
+    {
+      "name": "Othmane N.",
+      "url": "https://github.com/iietmoon"
+    }
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "react-native": "./src/index.ts",
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "lib",
+    "app.plugin.cjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "react-native": "./src/index.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@notifiable/react-native": "file:../react-native"
+  },
+  "peerDependencies": {
+    "@react-native-async-storage/async-storage": ">=1.21.0",
+    "expo": "*",
+    "expo-application": "*",
+    "expo-clipboard": "*",
+    "expo-constants": "*",
+    "expo-device": "*",
+    "expo-notifications": "*",
+    "react": ">=18",
+    "react-native": ">=0.73"
+  },
+  "peerDependenciesMeta": {
+    "@react-native-async-storage/async-storage": {
+      "optional": true
+    },
+    "expo-application": {
+      "optional": true
+    },
+    "expo-clipboard": {
+      "optional": true
+    },
+    "expo-device": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@expo/config-plugins": "^54.0.4",
+    "@types/react": "^19.2.2",
+    "@types/react-test-renderer": "^19.1.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "react": "^19.2.0",
+    "react-native": "0.87.1",
+    "react-test-renderer": "^19.2.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vitest": "^3.2.4"
+  }
+}

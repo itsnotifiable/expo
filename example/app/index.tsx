@@ -19,6 +19,8 @@ export default function SubscriberScreen() {
 
     try {
       await task();
+    } catch {
+      return;
     } finally {
       setBusy(false);
     }

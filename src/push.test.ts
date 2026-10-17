@@ -63,9 +63,32 @@ describe("createExpoPushPort", () => {
     for (const [status, expected] of cases) {
       notifications.getPermissionsAsync.mockResolvedValueOnce({ status });
       notifications.requestPermissionsAsync.mockResolvedValueOnce({ status });
+
+      if (status === "granted") {
+        notifications.getExpoPushTokenAsync.mockResolvedValue({
+          data: "ExponentPushToken[abc]",
+        });
+      }
+
       await expect(push.getPermissionStatus?.()).resolves.toBe(expected);
       await expect(push.requestPermission()).resolves.toBe(expected);
     }
+  });
+
+  it("does not report granted when the Expo token is missing", async () => {
+    notifications.getPermissionsAsync.mockResolvedValue({ status: "granted" });
+    notifications.requestPermissionsAsync.mockResolvedValue({
+      status: "granted",
+    });
+    notifications.getExpoPushTokenAsync.mockRejectedValue(
+      new Error("no token"),
+    );
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.getPermissionStatus?.()).resolves.toBe("not_determined");
+    await expect(push.requestPermission()).resolves.toBe("not_determined");
+    await expect(push.getToken()).resolves.toBeNull();
   });
 
   it("returns not_determined when permission cannot be read", async () => {

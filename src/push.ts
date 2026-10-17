@@ -43,8 +43,17 @@ async function readPermission(request: boolean): Promise<PermissionStatus> {
     const result = request
       ? await notifications.requestPermissionsAsync()
       : await notifications.getPermissionsAsync();
+    const status = mapStatus(result.status);
 
-    return mapStatus(result.status);
+    if (status !== "granted") {
+      return status;
+    }
+
+    // Expo Go can grant notification permission and still have no push token.
+    // The API rejects granted unless provider and token are sent.
+    const token = await readToken();
+
+    return token === null ? "not_determined" : status;
   } catch {
     return "not_determined";
   }

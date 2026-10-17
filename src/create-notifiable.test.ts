@@ -74,12 +74,12 @@ describe("createNotifiable", () => {
 
       expect(client.getSnapshot()).toMatchObject({
         ready: true,
-        permission: "granted",
+        permission: "not_determined",
         error: null,
         subscriber: { id: "sub_1" },
       });
       expect(saves[0]).toMatchObject({
-        permission: "granted",
+        permission: "not_determined",
         platform: "ios",
         device_model: "iPhone17,1",
         app_version: "1.4.0",

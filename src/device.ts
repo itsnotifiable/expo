@@ -1,12 +1,14 @@
 import { NotifiableError, type DevicePort } from "@notifiable/react-native";
+import { Platform } from "react-native";
 import type { MobilePlatform } from "./mobile-platform";
 
 export function createExpoDevicePort(): DevicePort {
   return {
     async getProfile() {
-      const reactNative = await import("react-native");
-      const platform = mobilePlatform(reactNative.Platform.OS);
-      const version = reactNative.Platform.Version;
+      // A dynamic import() of react-native is Metro importAll. That reads
+      // PushNotificationIOS and crashes Expo Go, which has no native module.
+      const platform = mobilePlatform(Platform.OS);
+      const version = Platform.Version;
       const device = await readDevice();
       const application = await readApplication();
       const options = Intl.DateTimeFormat().resolvedOptions();

@@ -1,4 +1,5 @@
 import type { PermissionStatus, PushPort } from "@notifiable/react-native";
+import { Platform } from "react-native";
 
 const foregroundBehavior = {
   shouldShowAlert: true,
@@ -84,13 +85,13 @@ async function prepareAndroidChannel(notifications: {
   ) => Promise<unknown>;
   readonly AndroidImportance: { readonly DEFAULT: number };
 }): Promise<void> {
+  // Read Platform from the static import. import("react-native") enumerates
+  // PushNotificationIOS and crashes Expo Go.
+  if (Platform.OS !== "android") {
+    return;
+  }
+
   try {
-    const reactNative = await import("react-native");
-
-    if (reactNative.Platform.OS !== "android") {
-      return;
-    }
-
     await notifications.setNotificationChannelAsync("default", {
       name: "Default",
       importance: notifications.AndroidImportance.DEFAULT,

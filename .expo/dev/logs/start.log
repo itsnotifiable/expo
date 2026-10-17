@@ -1,0 +1,18 @@
+{"_e":"root:init","_t":1792250278381,"format":"v0-jsonl","version":"57.0.31"}
+{"_e":"env:mode","_t":1792250278382,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1792250278384,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1792250278725,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1792250279187,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1792250279489,"plugins":[]}
+{"_e":"metro:instantiate","_t":1792250280342,"atlas":false,"workers":6,"host":"::","port":8081}
+{"_e":"root:init","_t":1792251176999,"format":"v0-jsonl","version":"57.0.31"}
+{"_e":"devserver:start","_t":1792251177018,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1792251177359,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1792251177511,"plugins":[]}
+{"_e":"metro:instantiate","_t":1792251178143,"atlas":false,"workers":6,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1792251472157,"id":"1","platform":"ios","environment":null,"entry":"lib/index.js"}
+{"_e":"metro:bundling:done","_t":1792251487594,"id":"1","total":1226,"ms":15437.493125}
+{"_e":"metro:client_log","_t":1792251488012,"level":"error","data":["[Invariant Violation: \"main\" has not been registered. This can happen if:\n* Metro (the local dev server) is run from the wrong folder. Check if Metro is running, stop it and restart it in the current project.\n* A module failed to load due to an error and `AppRegistry.registerComponent` wasn't called.]"]}
+{"_e":"metro:bundling:started","_t":1792251500172,"id":"3","platform":"ios","environment":null,"entry":"lib/index.js"}
+{"_e":"metro:bundling:done","_t":1792251500241,"id":"3","total":1,"ms":68.105792}
+{"_e":"metro:client_log","_t":1792251500525,"level":"error","data":["[Invariant Violation: \"main\" has not been registered. This can happen if:\n* Metro (the local dev server) is run from the wrong folder. Check if Metro is running, stop it and restart it in the current project.\n* A module failed to load due to an error and `AppRegistry.registerComponent` wasn't called.]"]}

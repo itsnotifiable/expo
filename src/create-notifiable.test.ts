@@ -1,5 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createNotifiable } from "./create-notifiable";
+
+const notifications = vi.hoisted(() => ({
+  status: "granted",
+  token: null as string | null,
+}));
 
 vi.mock("expo-device", () => ({
   modelName: "iPhone17,1",
@@ -17,9 +22,20 @@ vi.mock("expo-clipboard", () => ({
 }));
 
 vi.mock("expo-notifications", () => ({
-  getPermissionsAsync: () => Promise.resolve({ status: "granted" }),
-  requestPermissionsAsync: () => Promise.resolve({ status: "granted" }),
-  getExpoPushTokenAsync: () => Promise.reject(new Error("no token")),
+  getPermissionsAsync: () =>
+    Promise.resolve({
+      status: notifications.status,
+      canAskAgain: notifications.status !== "denied",
+    }),
+  requestPermissionsAsync: () =>
+    Promise.resolve({
+      status: notifications.status,
+      canAskAgain: notifications.status !== "denied",
+    }),
+  getExpoPushTokenAsync: () =>
+    notifications.token === null
+      ? Promise.reject(new Error("no token"))
+      : Promise.resolve({ data: notifications.token }),
   setNotificationChannelAsync: () => Promise.resolve(null),
   setNotificationHandler: () => undefined,
   addNotificationResponseReceivedListener: () => ({
@@ -30,10 +46,15 @@ vi.mock("expo-notifications", () => ({
 }));
 
 vi.mock("expo-constants", () => ({
-  default: { easConfig: null, expoConfig: null },
+  default: { easConfig: { projectId: "project-1" }, expoConfig: null },
 }));
 
 describe("createNotifiable", () => {
+  beforeEach(() => {
+    notifications.status = "granted";
+    notifications.token = null;
+  });
+
   it("connects when the Expo token cannot be created", async () => {
     const saves: unknown[] = [];
     vi.stubGlobal("fetch", (url: string, init?: { body?: string }) => {
@@ -89,6 +110,61 @@ describe("createNotifiable", () => {
       await expect(client.config.device?.getApplicationId?.()).resolves.toBe(
         "sh.notifiable.example",
       );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("sends the Expo token after permission is granted", async () => {
+    notifications.token = "ExponentPushToken[abc]";
+    const saves: unknown[] = [];
+    vi.stubGlobal("fetch", (url: string, init?: { body?: string }) => {
+      if (url.endsWith("/v1/sdk/client-config")) {
+        return Promise.resolve(envelope({ environment: "development" }));
+      }
+
+      if (init?.body !== undefined) {
+        saves.push(JSON.parse(init.body));
+      }
+
+      return Promise.resolve(
+        envelope({
+          id: "sub_1",
+          environment: "development",
+          platform: "ios",
+          permission: "granted",
+          prompt_permission: false,
+          sdk: "react-native",
+          provider: "expo",
+          device_id: "device",
+          anonymous_id: "anon",
+        }),
+      );
+    });
+
+    try {
+      const client = createNotifiable({
+        publicKey: "ntf_pub_test",
+        storage: {
+          getItem: () => Promise.resolve(null),
+          setItem: () => Promise.resolve(),
+          removeItem: () => Promise.resolve(),
+        },
+      });
+
+      await client.start();
+
+      expect(client.getSnapshot()).toMatchObject({
+        ready: true,
+        permission: "granted",
+        error: null,
+        subscriber: { id: "sub_1", provider: "expo" },
+      });
+      expect(saves[0]).toMatchObject({
+        permission: "granted",
+        provider: "expo",
+        token: "ExponentPushToken[abc]",
+      });
     } finally {
       vi.unstubAllGlobals();
     }

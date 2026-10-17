@@ -30,4 +30,13 @@ describe("config plugin", () => {
 
     expect(config.autolinking?.exclude).toEqual(["@notifiable/react-native"]);
   });
+
+  it("loads from app.plugin.js", () => {
+    const loaded = require("../app.plugin.js") as {
+      default?: typeof withNotifiable;
+    };
+    const plugin = loaded.default ?? (loaded as unknown as typeof withNotifiable);
+
+    expect(typeof plugin).toBe("function");
+  });
 });

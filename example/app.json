@@ -7,6 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "notifiable-example",
+    "owner": "iietmoon",
+    "extra": {
+      "eas": {
+        "projectId": "59b8681b-8d7b-4990-92df-d2b1d09a25e3"
+      }
+    },
     "plugins": [
       "expo-router",
       "@notifiable/expo",

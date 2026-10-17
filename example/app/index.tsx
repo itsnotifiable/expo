@@ -31,6 +31,7 @@ export default function SubscriberScreen() {
       <Text style={styles.title}>Subscriber</Text>
       <Status label="Ready" value={notifiable.ready ? "yes" : "no"} />
       <Status label="Permission" value={notifiable.permission} />
+      <Status label="Push provider" value={subscriber?.provider ?? "none"} />
       <Status label="Subscriber" value={subscriber?.id ?? "waiting"} />
       <Status label="Anonymous id" value={subscriber?.anonymousId ?? "none"} />
       <Status
@@ -51,7 +52,7 @@ export default function SubscriberScreen() {
       />
       {busy ? <ActivityIndicator /> : null}
       <Action
-        label="Request permission"
+        label={permissionLabel(notifiable.permission)}
         disabled={busy}
         onPress={() => {
           void run(() => notifiable.requestPermission());
@@ -102,6 +103,18 @@ export default function SubscriberScreen() {
       <Action label="Disconnect" onPress={disconnect} disabled={busy} />
     </Screen>
   );
+}
+
+function permissionLabel(permission: string): string {
+  if (permission === "denied") {
+    return "Open notification settings";
+  }
+
+  if (permission === "granted") {
+    return "Refresh push token";
+  }
+
+  return "Request permission";
 }
 
 const styles = StyleSheet.create({

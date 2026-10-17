@@ -1,6 +1,8 @@
 declare module "expo-notifications" {
   export interface NotificationPermissions {
     readonly status: string;
+    readonly canAskAgain?: boolean;
+    readonly granted?: boolean;
   }
 
   export interface ExpoPushToken {
@@ -12,9 +14,16 @@ declare module "expo-notifications" {
   }
 
   export function getPermissionsAsync(): Promise<NotificationPermissions>;
-  export function requestPermissionsAsync(): Promise<NotificationPermissions>;
+  export function requestPermissionsAsync(permissions?: {
+    readonly ios?: {
+      readonly allowAlert?: boolean;
+      readonly allowBadge?: boolean;
+      readonly allowSound?: boolean;
+    };
+  }): Promise<NotificationPermissions>;
   export function getExpoPushTokenAsync(options?: {
     readonly projectId?: string;
+    readonly applicationId?: string;
   }): Promise<ExpoPushToken>;
   export function setNotificationChannelAsync(
     channelId: string,

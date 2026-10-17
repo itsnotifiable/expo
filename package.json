@@ -30,6 +30,7 @@
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
     "lib",
+    "app.plugin.js",
     "app.plugin.cjs",
     "README.md",
     "LICENSE"
@@ -42,7 +43,8 @@
       "types": "./lib/index.d.ts",
       "react-native": "./src/index.ts",
       "default": "./lib/index.js"
-    }
+    },
+    "./app.plugin.js": "./app.plugin.js"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

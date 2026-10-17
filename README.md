@@ -20,7 +20,7 @@ Add the plugin to `app.json`:
 }
 ```
 
-The plugin applies `expo-notifications` and keeps the React Native package's native modules out of the Expo build. A real Expo push token needs a development or production build and an EAS project id. Expo Go, a simulator, or a missing project id still connects the subscriber and leaves the token off.
+The plugin applies `expo-notifications` and keeps the React Native package's native modules out of the Expo build. A real Expo push token needs a development or production build and an EAS project id. Put that id in `extra.eas.projectId`, and pass the same id as `projectId` on `NotifiableProvider`. A development build does not see `app.json` changes until the next prebuild, so the prop is what `getExpoPushTokenAsync` uses. Connect still succeeds without a token. After the system grants permission, the SDK sends that Expo token. The system prompt appears once; a later denial opens Settings.
 
 ## Configure
 
@@ -31,6 +31,7 @@ function App() {
   return (
     <NotifiableProvider
       publicKey="ntf_pub_..."
+      projectId="your-eas-project-id"
       deepLinks={[{ path: "/orders", label: "Orders" }]}
       onDeepLink={(url) => {
         // Open this route.

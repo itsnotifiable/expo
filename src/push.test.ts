@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PermissionStatus } from "@notifiable/react-native";
+import { linking } from "../test/react-native-stub";
 
 const notifications = vi.hoisted(() => ({
   missing: false,
@@ -30,6 +31,10 @@ vi.mock("expo-notifications", () => {
   return notifications;
 });
 
+vi.mock("expo-application", () => ({
+  applicationId: "sh.notifiable.example",
+}));
+
 vi.mock("expo-constants", () => ({
   default: {
     get easConfig() {
@@ -49,6 +54,7 @@ describe("createExpoPushPort", () => {
     notifications.getExpoPushTokenAsync.mockReset();
     notifications.setNotificationHandler.mockReset();
     constants.projectId = "project-1";
+    linking.settingsOpened = 0;
   });
 
   it("maps Expo permission statuses", async () => {
@@ -61,8 +67,8 @@ describe("createExpoPushPort", () => {
     ];
 
     for (const [status, expected] of cases) {
-      notifications.getPermissionsAsync.mockResolvedValueOnce({ status });
-      notifications.requestPermissionsAsync.mockResolvedValueOnce({ status });
+      notifications.getPermissionsAsync.mockResolvedValue({ status });
+      notifications.requestPermissionsAsync.mockResolvedValue({ status });
 
       if (status === "granted") {
         notifications.getExpoPushTokenAsync.mockResolvedValue({
@@ -73,6 +79,36 @@ describe("createExpoPushPort", () => {
       await expect(push.getPermissionStatus?.()).resolves.toBe(expected);
       await expect(push.requestPermission()).resolves.toBe(expected);
     }
+
+    expect(linking.settingsOpened).toBe(1);
+    expect(notifications.requestPermissionsAsync).toHaveBeenCalledWith({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
+  });
+
+  it("sends the captured Expo token after permission is already granted", async () => {
+    notifications.getPermissionsAsync.mockResolvedValue({ status: "granted" });
+    notifications.getExpoPushTokenAsync.mockResolvedValueOnce({
+      data: "ExponentPushToken[abc]",
+    });
+    notifications.getExpoPushTokenAsync.mockRejectedValue(
+      new Error("registration replaced"),
+    );
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.requestPermission()).resolves.toBe("granted");
+    await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
+    expect(notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledOnce();
+    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
+      projectId: "project-1",
+      applicationId: "sh.notifiable.example",
+    });
   });
 
   it("does not report granted when the Expo token is missing", async () => {
@@ -87,7 +123,10 @@ describe("createExpoPushPort", () => {
     const push = createExpoPushPort();
 
     await expect(push.getPermissionStatus?.()).resolves.toBe("not_determined");
-    await expect(push.requestPermission()).resolves.toBe("not_determined");
+    await expect(push.requestPermission()).rejects.toMatchObject({
+      code: "missing_token",
+      message: "no token",
+    });
     await expect(push.getToken()).resolves.toBeNull();
   });
 
@@ -113,9 +152,25 @@ describe("createExpoPushPort", () => {
     await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
     expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
       projectId: "project-1",
+      applicationId: "sh.notifiable.example",
     });
     expect(push.allowMissingToken).toBe(true);
     expect(push.provider).toBe("expo");
+  });
+
+  it("uses a configured project id when the manifest has none", async () => {
+    constants.projectId = null;
+    notifications.getExpoPushTokenAsync.mockResolvedValue({
+      data: "ExponentPushToken[abc]",
+    });
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort("  project-from-config  ");
+
+    await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
+    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
+      projectId: "project-from-config",
+      applicationId: "sh.notifiable.example",
+    });
   });
 
   it("returns null when the token cannot be created", async () => {

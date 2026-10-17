@@ -58,8 +58,16 @@ export const Animated = {
   }),
 };
 
+export const linking = {
+  settingsOpened: 0,
+};
+
 export const Linking = {
   openURL: (): Promise<void> => Promise.resolve(),
+  openSettings: (): Promise<void> => {
+    linking.settingsOpened += 1;
+    return Promise.resolve();
+  },
 };
 
 export const AppState = {

@@ -5,6 +5,7 @@ import { NotifiableProvider } from "@notifiable/expo";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ConnectScreen } from "../components/connect-screen";
 import { SessionProvider, usePublicKey } from "../components/session";
+import appConfig from "../app.json";
 import { deepLinks, routeFor } from "../lib/routes";
 
 export default function RootLayout() {
@@ -19,6 +20,7 @@ export default function RootLayout() {
         <SessionProvider disconnect={session.disconnect}>
           <NotifiableProvider
             publicKey={session.publicKey}
+            projectId={appConfig.expo.extra.eas.projectId}
             deepLinks={deepLinks}
             onDeepLink={(url) => {
               const path = routeFor(url);

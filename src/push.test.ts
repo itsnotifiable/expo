@@ -49,7 +49,7 @@ vi.mock("expo-constants", () => ({
 }));
 
 describe("createExpoPushPort", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     notifications.missing = false;
     notifications.getPermissionsAsync.mockReset();
     notifications.requestPermissionsAsync.mockReset();
@@ -59,7 +59,13 @@ describe("createExpoPushPort", () => {
     notifications.setNotificationHandler.mockReset();
     constants.projectId = "project-1";
     linking.settingsOpened = 0;
+    linking.lastIntent = null;
+    linking.lastIntentExtras = null;
     Platform.OS = "ios";
+    const loaded = await import("./push");
+    while (loaded.takePendingSettingsRecheck()) {
+      // Drain any leftover Settings recheck flag from a prior test.
+    }
   });
 
   afterEach(() => {
@@ -104,12 +110,38 @@ describe("createExpoPushPort", () => {
       status: "denied",
       canAskAgain: false,
     });
-    const { createExpoPushPort } = await import("./push");
+    const { createExpoPushPort, takePendingSettingsRecheck } =
+      await import("./push");
     const push = createExpoPushPort();
 
     await expect(push.requestPermission()).resolves.toBe("denied");
     expect(linking.settingsOpened).toBe(1);
     expect(notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(takePendingSettingsRecheck()).toBe(true);
+    expect(takePendingSettingsRecheck()).toBe(false);
+  });
+
+  it("opens Android app notification settings on permanent deny", async () => {
+    Platform.OS = "android";
+    linking.lastIntent = null;
+    linking.lastIntentExtras = null;
+    notifications.getPermissionsAsync.mockResolvedValue({
+      status: "denied",
+      canAskAgain: false,
+    });
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.requestPermission()).resolves.toBe("denied");
+    expect(linking.lastIntent).toBe(
+      "android.settings.APP_NOTIFICATION_SETTINGS",
+    );
+    expect(linking.lastIntentExtras).toEqual([
+      {
+        key: "android.provider.extra.APP_PACKAGE",
+        value: "sh.notifiable.example",
+      },
+    ]);
   });
 
   it("requests permission when denied but canAskAgain is true", async () => {

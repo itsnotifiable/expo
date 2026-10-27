@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, type ReactNode } from "react";
+import { AppState } from "react-native";
 import {
   NotifiableError,
   NotifiableProvider as NativeProvider,
@@ -7,7 +8,10 @@ import {
 } from "@notifiable/react-native";
 import { createNotifiable } from "./create-notifiable";
 import { subscribeToNotificationResponses } from "./notification-response";
-import { installNotificationHandler } from "./push";
+import {
+  installNotificationHandler,
+  takePendingSettingsRecheck,
+} from "./push";
 
 export type NotifiableProviderProps = Omit<NativeProviderProps, "push"> & {
   readonly projectId?: string;
@@ -76,6 +80,33 @@ function NotificationBridge({
     void installNotificationHandler();
 
     return subscribeToNotificationResponses(client);
+  }, [client]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !takePendingSettingsRecheck()) {
+        return;
+      }
+
+      void (async () => {
+        const status = await client.config.push?.getPermissionStatus?.();
+
+        // Still denied — do not call requestPermission (would re-open Settings).
+        if (status === undefined || status === "denied") {
+          return;
+        }
+
+        try {
+          await client.requestPermission();
+        } catch {
+          return;
+        }
+      })();
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [client]);
 
   return <>{children}</>;

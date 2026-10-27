@@ -60,6 +60,10 @@ export const Animated = {
 
 export const linking = {
   settingsOpened: 0,
+  lastIntent: null as string | null,
+  lastIntentExtras: null as
+    | ReadonlyArray<{ readonly key: string; readonly value: string }>
+    | null,
 };
 
 export const Linking = {
@@ -68,13 +72,40 @@ export const Linking = {
     linking.settingsOpened += 1;
     return Promise.resolve();
   },
+  sendIntent: (
+    action: string,
+    extras?: ReadonlyArray<{ readonly key: string; readonly value: string }>,
+  ): Promise<void> => {
+    linking.settingsOpened += 1;
+    linking.lastIntent = action;
+    linking.lastIntentExtras = extras ?? null;
+    return Promise.resolve();
+  },
 };
 
+type AppStateListener = (state: string) => void;
+
+const appStateListeners = new Set<AppStateListener>();
+
 export const AppState = {
-  currentState: "active",
-  addEventListener: (): { remove: () => void } => ({
-    remove: () => undefined,
-  }),
+  currentState: "active" as string,
+  addEventListener: (
+    _type: string,
+    listener: AppStateListener,
+  ): { remove: () => void } => {
+    appStateListeners.add(listener);
+    return {
+      remove: () => {
+        appStateListeners.delete(listener);
+      },
+    };
+  },
+  emit(state: string): void {
+    this.currentState = state;
+    for (const listener of appStateListeners) {
+      listener(state);
+    }
+  },
 };
 
 export function useWindowDimensions(): {

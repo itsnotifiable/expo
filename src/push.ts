@@ -50,6 +50,7 @@ interface ExpoNotifications {
 }
 
 let handlerInstalled = false;
+let pendingSettingsRecheck = false;
 
 export function createExpoPushPort(projectId?: string): PushPort {
   const store: TokenStore = { cachedToken: null, lastTokenError: null };
@@ -63,6 +64,13 @@ export function createExpoPushPort(projectId?: string): PushPort {
     requestPermission: () => readPermission(true, store, configuredProjectId),
     getToken: () => readToken(false, store, configuredProjectId),
   };
+}
+
+/** True after permanent-deny opened Settings; cleared when consumed. */
+export function takePendingSettingsRecheck(): boolean {
+  const pending = pendingSettingsRecheck;
+  pendingSettingsRecheck = false;
+  return pending;
 }
 
 export async function installNotificationHandler(): Promise<void> {
@@ -255,6 +263,26 @@ function tokenFailureMessage(store: TokenStore): string {
 }
 
 async function openNotificationSettings(): Promise<void> {
+  pendingSettingsRecheck = true;
+
+  if (Platform.OS === "android") {
+    try {
+      const applicationId = await readApplicationId();
+
+      if (applicationId !== null && typeof Linking.sendIntent === "function") {
+        await Linking.sendIntent("android.settings.APP_NOTIFICATION_SETTINGS", [
+          {
+            key: "android.provider.extra.APP_PACKAGE",
+            value: applicationId,
+          },
+        ]);
+        return;
+      }
+    } catch {
+      // Fall through to generic app settings.
+    }
+  }
+
   try {
     await Linking.openSettings();
   } catch {

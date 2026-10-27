@@ -1,6 +1,6 @@
 {
   "name": "@notifiable/expo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Expo SDK for Notifiable.",
   "homepage": "https://notifiable.sh",
   "keywords": [
@@ -54,11 +54,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@notifiable/react-native": "file:../react-native",
-    "expo": "~57.0.30",
-    "expo-dev-client": "~57.0.20",
-    "react": "19.2.3",
-    "react-native": "0.86.3"
+    "@notifiable/react-native": "^0.1.5"
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=1.21.0",

@@ -1,6 +1,6 @@
 {
   "name": "@notifiable/expo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Expo SDK for Notifiable.",
   "homepage": "https://notifiable.sh",
   "keywords": [

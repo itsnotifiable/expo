@@ -88,12 +88,19 @@ async function readPermission(
 ): Promise<PermissionStatus> {
   try {
     const notifications = await import("expo-notifications");
+    // Android 13+ shows the system prompt only after a channel exists.
+    await prepareAndroidChannel(notifications);
     const current = await notifications.getPermissionsAsync();
     const currentStatus = mapStatus(current.status);
 
-    // iOS and Android show the system prompt once. A later tap cannot ask
-    // again after a denial, so open Settings instead of a no-op request.
-    if (request && currentStatus === "denied") {
+    // Open Settings only when the OS will not show the prompt again.
+    // Missing canAskAgain is treated as "may ask" so a soft denial still
+    // reaches requestPermissionsAsync after the channel is ready.
+    if (
+      request &&
+      currentStatus === "denied" &&
+      current.canAskAgain === false
+    ) {
       await openNotificationSettings();
       return "denied";
     }

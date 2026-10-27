@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PermissionStatus } from "@notifiable/react-native";
-import { linking } from "../test/react-native-stub";
+import { linking, Platform } from "../test/react-native-stub";
 
 const notifications = vi.hoisted(() => ({
   missing: false,
-  getPermissionsAsync: vi.fn<() => Promise<{ status: string }>>(),
+  getPermissionsAsync: vi.fn<
+    () => Promise<{ status: string; canAskAgain?: boolean }>
+  >(),
   requestPermissionsAsync: vi.fn<() => Promise<{ status: string }>>(),
   getExpoPushTokenAsync: vi.fn<
     (options?: { projectId?: string }) => Promise<{ data: string }>
@@ -52,9 +54,16 @@ describe("createExpoPushPort", () => {
     notifications.getPermissionsAsync.mockReset();
     notifications.requestPermissionsAsync.mockReset();
     notifications.getExpoPushTokenAsync.mockReset();
+    notifications.setNotificationChannelAsync.mockReset();
+    notifications.setNotificationChannelAsync.mockResolvedValue(null);
     notifications.setNotificationHandler.mockReset();
     constants.projectId = "project-1";
     linking.settingsOpened = 0;
+    Platform.OS = "ios";
+  });
+
+  afterEach(() => {
+    Platform.OS = "ios";
   });
 
   it("maps Expo permission statuses", async () => {
@@ -80,7 +89,7 @@ describe("createExpoPushPort", () => {
       await expect(push.requestPermission()).resolves.toBe(expected);
     }
 
-    expect(linking.settingsOpened).toBe(1);
+    expect(linking.settingsOpened).toBe(0);
     expect(notifications.requestPermissionsAsync).toHaveBeenCalledWith({
       ios: {
         allowAlert: true,
@@ -88,6 +97,72 @@ describe("createExpoPushPort", () => {
         allowSound: true,
       },
     });
+  });
+
+  it("opens Settings only when denied and canAskAgain is false", async () => {
+    notifications.getPermissionsAsync.mockResolvedValue({
+      status: "denied",
+      canAskAgain: false,
+    });
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.requestPermission()).resolves.toBe("denied");
+    expect(linking.settingsOpened).toBe(1);
+    expect(notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it("requests permission when denied but canAskAgain is true", async () => {
+    notifications.getPermissionsAsync.mockResolvedValue({
+      status: "denied",
+      canAskAgain: true,
+    });
+    notifications.requestPermissionsAsync.mockResolvedValue({
+      status: "denied",
+    });
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.requestPermission()).resolves.toBe("denied");
+    expect(linking.settingsOpened).toBe(0);
+    expect(notifications.requestPermissionsAsync).toHaveBeenCalledOnce();
+  });
+
+  it("creates the Android channel before reading or requesting permission", async () => {
+    Platform.OS = "android";
+    const order: string[] = [];
+    notifications.setNotificationChannelAsync.mockImplementation(() => {
+      order.push("channel");
+      return Promise.resolve(null);
+    });
+    notifications.getPermissionsAsync.mockImplementation(() => {
+      order.push("getPermissions");
+      return Promise.resolve({ status: "undetermined" });
+    });
+    notifications.requestPermissionsAsync.mockImplementation(() => {
+      order.push("requestPermissions");
+      return Promise.resolve({ status: "denied" });
+    });
+    const { createExpoPushPort } = await import("./push");
+    const push = createExpoPushPort();
+
+    await expect(push.getPermissionStatus?.()).resolves.toBe("not_determined");
+    expect(order).toEqual(["channel", "getPermissions"]);
+
+    order.length = 0;
+    await expect(push.requestPermission()).resolves.toBe("denied");
+    expect(order).toEqual([
+      "channel",
+      "getPermissions",
+      "requestPermissions",
+    ]);
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      "default",
+      {
+        name: "Default",
+        importance: notifications.AndroidImportance.DEFAULT,
+      },
+    );
   });
 
   it("sends the captured Expo token after permission is already granted", async () => {

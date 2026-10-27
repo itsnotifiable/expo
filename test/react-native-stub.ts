@@ -11,7 +11,7 @@ export const Text = passthrough;
 export const Pressable = passthrough;
 export const Image = (): null => null;
 
-export const Platform = {
+export const Platform: { OS: string; Version: string } = {
   OS: "ios",
   Version: "18.0",
 };

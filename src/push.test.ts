@@ -8,9 +8,7 @@ const notifications = vi.hoisted(() => ({
     () => Promise<{ status: string; canAskAgain?: boolean }>
   >(),
   requestPermissionsAsync: vi.fn<() => Promise<{ status: string }>>(),
-  getExpoPushTokenAsync: vi.fn<
-    (options?: { projectId?: string }) => Promise<{ data: string }>
-  >(),
+  getDevicePushTokenAsync: vi.fn<() => Promise<{ data: string; type?: string }>>(),
   setNotificationChannelAsync: vi.fn(() => Promise.resolve(null)),
   setNotificationHandler: vi.fn(),
   addNotificationResponseReceivedListener: vi.fn(() => ({
@@ -19,11 +17,6 @@ const notifications = vi.hoisted(() => ({
   getLastNotificationResponseAsync: vi.fn(() => Promise.resolve(null)),
   AndroidImportance: { DEFAULT: 3 },
 }));
-
-const constants = vi.hoisted(() => {
-  const state: { projectId: string | null } = { projectId: "project-1" };
-  return state;
-});
 
 vi.mock("expo-notifications", () => {
   if (notifications.missing) {
@@ -37,27 +30,15 @@ vi.mock("expo-application", () => ({
   applicationId: "sh.notifiable.example",
 }));
 
-vi.mock("expo-constants", () => ({
-  default: {
-    get easConfig() {
-      return constants.projectId === null
-        ? null
-        : { projectId: constants.projectId };
-    },
-    expoConfig: null,
-  },
-}));
-
 describe("createExpoPushPort", () => {
   beforeEach(async () => {
     notifications.missing = false;
     notifications.getPermissionsAsync.mockReset();
     notifications.requestPermissionsAsync.mockReset();
-    notifications.getExpoPushTokenAsync.mockReset();
+    notifications.getDevicePushTokenAsync.mockReset();
     notifications.setNotificationChannelAsync.mockReset();
     notifications.setNotificationChannelAsync.mockResolvedValue(null);
     notifications.setNotificationHandler.mockReset();
-    constants.projectId = "project-1";
     linking.settingsOpened = 0;
     linking.lastIntent = null;
     linking.lastIntentExtras = null;
@@ -86,8 +67,9 @@ describe("createExpoPushPort", () => {
       notifications.requestPermissionsAsync.mockResolvedValue({ status });
 
       if (status === "granted") {
-        notifications.getExpoPushTokenAsync.mockResolvedValue({
-          data: "ExponentPushToken[abc]",
+        notifications.getDevicePushTokenAsync.mockResolvedValue({
+          data: "apns-device-token",
+          type: "ios",
         });
       }
 
@@ -197,33 +179,30 @@ describe("createExpoPushPort", () => {
     );
   });
 
-  it("sends the captured Expo token after permission is already granted", async () => {
+  it("sends the captured device token after permission is already granted", async () => {
     notifications.getPermissionsAsync.mockResolvedValue({ status: "granted" });
-    notifications.getExpoPushTokenAsync.mockResolvedValueOnce({
-      data: "ExponentPushToken[abc]",
+    notifications.getDevicePushTokenAsync.mockResolvedValueOnce({
+      data: "apns-device-token",
+      type: "ios",
     });
-    notifications.getExpoPushTokenAsync.mockRejectedValue(
+    notifications.getDevicePushTokenAsync.mockRejectedValue(
       new Error("registration replaced"),
     );
     const { createExpoPushPort } = await import("./push");
     const push = createExpoPushPort();
 
     await expect(push.requestPermission()).resolves.toBe("granted");
-    await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
+    await expect(push.getToken()).resolves.toBe("apns-device-token");
     expect(notifications.requestPermissionsAsync).not.toHaveBeenCalled();
-    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledOnce();
-    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
-      projectId: "project-1",
-      applicationId: "sh.notifiable.example",
-    });
+    expect(notifications.getDevicePushTokenAsync).toHaveBeenCalledOnce();
   });
 
-  it("does not report granted when the Expo token is missing", async () => {
+  it("does not report granted when the device token is missing", async () => {
     notifications.getPermissionsAsync.mockResolvedValue({ status: "granted" });
     notifications.requestPermissionsAsync.mockResolvedValue({
       status: "granted",
     });
-    notifications.getExpoPushTokenAsync.mockRejectedValue(
+    notifications.getDevicePushTokenAsync.mockRejectedValue(
       new Error("no token"),
     );
     const { createExpoPushPort } = await import("./push");
@@ -249,41 +228,37 @@ describe("createExpoPushPort", () => {
     await expect(push.requestPermission()).resolves.toBe("not_determined");
   });
 
-  it("returns the Expo push token", async () => {
-    notifications.getExpoPushTokenAsync.mockResolvedValue({
-      data: " ExponentPushToken[abc] ",
+  it("returns the native device push token with an apns provider on iOS", async () => {
+    Platform.OS = "ios";
+    notifications.getDevicePushTokenAsync.mockResolvedValue({
+      data: " apns-device-token ",
+      type: "ios",
     });
     const { createExpoPushPort } = await import("./push");
     const push = createExpoPushPort();
 
-    await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
-    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
-      projectId: "project-1",
-      applicationId: "sh.notifiable.example",
-    });
+    await expect(push.getToken()).resolves.toBe("apns-device-token");
+    expect(notifications.getDevicePushTokenAsync).toHaveBeenCalledOnce();
     expect(push.allowMissingToken).toBe(true);
-    expect(push.provider).toBe("expo");
+    expect(push.provider).toBe("apns");
   });
 
-  it("uses a configured project id when the manifest has none", async () => {
-    constants.projectId = null;
-    notifications.getExpoPushTokenAsync.mockResolvedValue({
-      data: "ExponentPushToken[abc]",
+  it("uses an fcm provider on Android", async () => {
+    Platform.OS = "android";
+    notifications.getDevicePushTokenAsync.mockResolvedValue({
+      data: "fcm-device-token",
+      type: "android",
     });
     const { createExpoPushPort } = await import("./push");
-    const push = createExpoPushPort("  project-from-config  ");
+    const push = createExpoPushPort();
 
-    await expect(push.getToken()).resolves.toBe("ExponentPushToken[abc]");
-    expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({
-      projectId: "project-from-config",
-      applicationId: "sh.notifiable.example",
-    });
+    await expect(push.getToken()).resolves.toBe("fcm-device-token");
+    expect(push.provider).toBe("fcm");
   });
 
   it("returns null when the token cannot be created", async () => {
-    constants.projectId = null;
-    notifications.getExpoPushTokenAsync.mockRejectedValue(
-      new Error("no project id"),
+    notifications.getDevicePushTokenAsync.mockRejectedValue(
+      new Error("Firebase not configured"),
     );
     const { createExpoPushPort } = await import("./push");
     const push = createExpoPushPort();

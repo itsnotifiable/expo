@@ -61,7 +61,6 @@
     "expo": "*",
     "expo-application": "*",
     "expo-clipboard": "*",
-    "expo-constants": "*",
     "expo-device": "*",
     "expo-notifications": "*",
     "react": ">=18",

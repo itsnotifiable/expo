@@ -5,8 +5,9 @@ declare module "expo-notifications" {
     readonly granted?: boolean;
   }
 
-  export interface ExpoPushToken {
+  export interface DevicePushToken {
     readonly data: string;
+    readonly type?: string;
   }
 
   export interface NotificationSubscription {
@@ -21,10 +22,7 @@ declare module "expo-notifications" {
       readonly allowSound?: boolean;
     };
   }): Promise<NotificationPermissions>;
-  export function getExpoPushTokenAsync(options?: {
-    readonly projectId?: string;
-    readonly applicationId?: string;
-  }): Promise<ExpoPushToken>;
+  export function getDevicePushTokenAsync(): Promise<DevicePushToken>;
   export function setNotificationChannelAsync(
     channelId: string,
     channel: { readonly name: string; readonly importance: number },
@@ -43,20 +41,6 @@ declare module "expo-notifications" {
   ): NotificationSubscription;
   export function getLastNotificationResponseAsync(): Promise<unknown>;
   export const AndroidImportance: { readonly DEFAULT: number };
-}
-
-declare module "expo-constants" {
-  interface ExpoConstants {
-    readonly expoConfig?: {
-      readonly extra?: {
-        readonly eas?: { readonly projectId?: string };
-      };
-    } | null;
-    readonly easConfig?: { readonly projectId?: string } | null;
-  }
-
-  const Constants: ExpoConstants;
-  export default Constants;
 }
 
 declare module "expo-device" {

@@ -32,10 +32,10 @@ vi.mock("expo-notifications", () => ({
       status: notifications.status,
       canAskAgain: notifications.status !== "denied",
     }),
-  getExpoPushTokenAsync: () =>
+  getDevicePushTokenAsync: () =>
     notifications.token === null
       ? Promise.reject(new Error("no token"))
-      : Promise.resolve({ data: notifications.token }),
+      : Promise.resolve({ data: notifications.token, type: "ios" }),
   setNotificationChannelAsync: () => Promise.resolve(null),
   setNotificationHandler: () => undefined,
   addNotificationResponseReceivedListener: () => ({
@@ -45,17 +45,13 @@ vi.mock("expo-notifications", () => ({
   AndroidImportance: { DEFAULT: 3 },
 }));
 
-vi.mock("expo-constants", () => ({
-  default: { easConfig: { projectId: "project-1" }, expoConfig: null },
-}));
-
 describe("createNotifiable", () => {
   beforeEach(() => {
     notifications.status = "granted";
     notifications.token = null;
   });
 
-  it("connects when the Expo token cannot be created", async () => {
+  it("connects when the device token cannot be created", async () => {
     const saves: unknown[] = [];
     vi.stubGlobal("fetch", (url: string, init?: { body?: string }) => {
       if (url.endsWith("/v1/sdk/client-config")) {
@@ -115,8 +111,8 @@ describe("createNotifiable", () => {
     }
   });
 
-  it("sends the Expo token after permission is granted", async () => {
-    notifications.token = "ExponentPushToken[abc]";
+  it("sends the device token after permission is granted", async () => {
+    notifications.token = "apns-device-token";
     const saves: unknown[] = [];
     vi.stubGlobal("fetch", (url: string, init?: { body?: string }) => {
       if (url.endsWith("/v1/sdk/client-config")) {
@@ -135,7 +131,7 @@ describe("createNotifiable", () => {
           permission: "granted",
           prompt_permission: false,
           sdk: "react-native",
-          provider: "expo",
+          provider: "apns",
           device_id: "device",
           anonymous_id: "anon",
         }),
@@ -158,12 +154,12 @@ describe("createNotifiable", () => {
         ready: true,
         permission: "granted",
         error: null,
-        subscriber: { id: "sub_1", provider: "expo" },
+        subscriber: { id: "sub_1", provider: "apns" },
       });
       expect(saves[0]).toMatchObject({
         permission: "granted",
-        provider: "expo",
-        token: "ExponentPushToken[abc]",
+        provider: "apns",
+        token: "apns-device-token",
       });
     } finally {
       vi.unstubAllGlobals();

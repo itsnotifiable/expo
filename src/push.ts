@@ -4,6 +4,7 @@ import {
   type PushPort,
 } from "@notifiable/react-native";
 import { Linking, Platform } from "react-native";
+import { pushProviderForDevice } from "./mobile-platform";
 
 const foregroundBehavior = {
   shouldShowAlert: true,
@@ -38,10 +39,10 @@ interface ExpoNotifications {
       readonly allowSound?: boolean;
     };
   }) => Promise<{ readonly status: string }>;
-  getExpoPushTokenAsync: (options?: {
-    readonly projectId?: string;
-    readonly applicationId?: string;
-  }) => Promise<{ readonly data: string }>;
+  getDevicePushTokenAsync: () => Promise<{
+    readonly data: string;
+    readonly type?: string;
+  }>;
   setNotificationChannelAsync: (
     channelId: string,
     channel: { readonly name: string; readonly importance: number },
@@ -52,17 +53,15 @@ interface ExpoNotifications {
 let handlerInstalled = false;
 let pendingSettingsRecheck = false;
 
-export function createExpoPushPort(projectId?: string): PushPort {
+export function createExpoPushPort(): PushPort {
   const store: TokenStore = { cachedToken: null, lastTokenError: null };
-  const configuredProjectId = text(projectId);
 
   return {
-    provider: "expo",
+    provider: pushProviderForDevice(),
     allowMissingToken: true,
-    getPermissionStatus: () =>
-      readPermission(false, store, configuredProjectId),
-    requestPermission: () => readPermission(true, store, configuredProjectId),
-    getToken: () => readToken(false, store, configuredProjectId),
+    getPermissionStatus: () => readPermission(false, store),
+    requestPermission: () => readPermission(true, store),
+    getToken: () => readToken(false, store),
   };
 }
 
@@ -92,7 +91,6 @@ export async function installNotificationHandler(): Promise<void> {
 async function readPermission(
   request: boolean,
   store: TokenStore,
-  configuredProjectId: string | null,
 ): Promise<PermissionStatus> {
   try {
     const notifications = await import("expo-notifications");
@@ -123,14 +121,14 @@ async function readPermission(
       return status;
     }
 
-    const token = await readToken(true, store, configuredProjectId);
+    const token = await readToken(true, store);
 
     if (token !== null) {
       return "granted";
     }
 
-    // Startup still connects when Expo Go or a simulator has no token.
-    // An explicit request surfaces the failure instead of looking idle.
+    // Startup still connects when a simulator or misconfigured build has no
+    // token. An explicit request surfaces the failure instead of looking idle.
     if (request) {
       throw new NotifiableError({
         code: "missing_token",
@@ -163,7 +161,6 @@ function mapStatus(status: string): PermissionStatus {
 async function readToken(
   refresh: boolean,
   store: TokenStore,
-  configuredProjectId: string | null,
 ): Promise<string | null> {
   if (!refresh && store.cachedToken !== null) {
     return store.cachedToken;
@@ -172,14 +169,7 @@ async function readToken(
   try {
     const notifications = await import("expo-notifications");
     await prepareAndroidChannel(notifications);
-    const projectId = await readProjectId(configuredProjectId);
-    const applicationId = await readApplicationId();
-    const value = await fetchExpoToken(
-      notifications,
-      projectId,
-      applicationId,
-      store,
-    );
+    const value = await fetchDeviceToken(notifications, store);
 
     if (value !== null) {
       store.cachedToken = value;
@@ -193,21 +183,15 @@ async function readToken(
   return store.cachedToken;
 }
 
-async function fetchExpoToken(
-  notifications: Pick<ExpoNotifications, "getExpoPushTokenAsync">,
-  projectId: string | null,
-  applicationId: string | null,
+async function fetchDeviceToken(
+  notifications: Pick<ExpoNotifications, "getDevicePushTokenAsync">,
   store: TokenStore,
 ): Promise<string | null> {
-  const options = {
-    ...(projectId !== null ? { projectId } : {}),
-    ...(applicationId !== null ? { applicationId } : {}),
-  };
   let attempt = 0;
 
   while (attempt < 3) {
     try {
-      const token = await notifications.getExpoPushTokenAsync(options);
+      const token = await notifications.getDevicePushTokenAsync();
       const value = token.data.trim();
 
       return value.length > 0 ? value : null;
@@ -215,7 +199,7 @@ async function fetchExpoToken(
       store.lastTokenError = error;
       attempt += 1;
 
-      if (attempt >= 3 || !shouldRetry(error)) {
+      if (attempt >= 3) {
         return null;
       }
 
@@ -224,12 +208,6 @@ async function fetchExpoToken(
   }
 
   return null;
-}
-
-function shouldRetry(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : "";
-
-  return !message.includes("projectId") && !message.includes("applicationId");
 }
 
 function retryDelay(attempt: number): number {
@@ -259,7 +237,7 @@ function tokenFailureMessage(store: TokenStore): string {
     }
   }
 
-  return "Push permission is granted, but no Expo push token was returned.";
+  return "Push permission is granted, but no device push token was returned.";
 }
 
 async function openNotificationSettings(): Promise<void> {
@@ -310,64 +288,6 @@ async function prepareAndroidChannel(
   } catch {
     return;
   }
-}
-
-async function readProjectId(
-  configuredProjectId: string | null,
-): Promise<string | null> {
-  if (configuredProjectId !== null) {
-    return configuredProjectId;
-  }
-
-  try {
-    const constants = await import("expo-constants");
-    const source = constantsSource(constants);
-    const fromEas = text(source.easConfig?.projectId);
-    const fromExtra = text(source.expoConfig?.extra?.eas?.projectId);
-    const fromManifest = text(source.manifest?.extra?.eas?.projectId);
-    const fromManifest2 = text(source.manifest2?.extra?.eas?.projectId);
-    const fromClient = text(
-      source.manifest2?.extra?.expoClient?.extra?.eas?.projectId,
-    );
-
-    return fromEas ?? fromExtra ?? fromManifest ?? fromManifest2 ?? fromClient;
-  } catch {
-    return null;
-  }
-}
-
-function constantsSource(
-  mod: { readonly default?: ConstantsShape } & ConstantsShape,
-): ConstantsShape {
-  if (mod.default !== undefined) {
-    return mod.default;
-  }
-
-  return mod;
-}
-
-interface ConstantsShape {
-  readonly easConfig?: { readonly projectId?: string } | null;
-  readonly expoConfig?: {
-    readonly extra?: {
-      readonly eas?: { readonly projectId?: string };
-    };
-  } | null;
-  readonly manifest?: {
-    readonly extra?: {
-      readonly eas?: { readonly projectId?: string };
-    };
-  } | null;
-  readonly manifest2?: {
-    readonly extra?: {
-      readonly eas?: { readonly projectId?: string };
-      readonly expoClient?: {
-        readonly extra?: {
-          readonly eas?: { readonly projectId?: string };
-        };
-      };
-    };
-  } | null;
 }
 
 async function readApplicationId(): Promise<string | null> {

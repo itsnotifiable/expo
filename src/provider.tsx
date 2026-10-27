@@ -13,15 +13,12 @@ import {
   takePendingSettingsRecheck,
 } from "./push";
 
-export type NotifiableProviderProps = Omit<NativeProviderProps, "push"> & {
-  readonly projectId?: string;
-};
+export type NotifiableProviderProps = Omit<NativeProviderProps, "push">;
 
 export function NotifiableProvider({
   children,
   client,
   publicKey,
-  projectId,
   logger,
   storage,
   device,
@@ -44,23 +41,13 @@ export function NotifiableProvider({
 
     return createNotifiable({
       publicKey: key,
-      ...(projectId !== undefined ? { projectId } : {}),
       ...(logger !== undefined ? { logger } : {}),
       ...(storage !== undefined ? { storage } : {}),
       ...(device !== undefined ? { device } : {}),
       ...(deepLinks !== undefined ? { deepLinks } : {}),
       ...(onDeepLink !== undefined ? { onDeepLink } : {}),
     });
-  }, [
-    client,
-    publicKey,
-    projectId,
-    logger,
-    storage,
-    device,
-    deepLinks,
-    onDeepLink,
-  ]);
+  }, [client, publicKey, logger, storage, device, deepLinks, onDeepLink]);
 
   return (
     <NativeProvider client={resolved}>
